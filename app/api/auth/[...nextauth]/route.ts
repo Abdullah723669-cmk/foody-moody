@@ -2,10 +2,7 @@ import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
-import fs from "fs";
-import path from "path";
-
-const usersFilePath = path.join(process.cwd(), "lib", "users.json");
+import { supabase } from "@/lib/supabase";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -24,13 +21,6 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials, req) {
-        if (credentials?.email === "admin@example.com" && credentials?.password === "admin123") {
-          return { id: "1", name: "Admin User", email: "admin@example.com", role: "admin" };
-        }
-        if (credentials?.email === "user@example.com" && credentials?.password === "user123") {
-          return { id: "2", name: "Demo User", email: "user@example.com", role: "user" };
-        }
-        
         // Mock authentication for social logins
         if (credentials?.email === "google-mock@example.com" && credentials?.password === "oauth123") {
           return { id: "google-oauth", name: "Google Customer", email: "google-mock@example.com", role: "user" };
@@ -39,22 +29,30 @@ export const authOptions: NextAuthOptions = {
           return { id: "github-oauth", name: "GitHub Coder", email: "github-mock@example.com", role: "user" };
         }
         
-        // Dynamically registered custom users check
+        // Supabase Database Authentication Check
         try {
-          if (fs.existsSync(usersFilePath)) {
-            const data = fs.readFileSync(usersFilePath, "utf-8");
-            const customUsers = JSON.parse(data || "[]");
-            const matched = customUsers.find(
-              (u: any) => 
-                u.email.toLowerCase() === credentials?.email?.toLowerCase() && 
-                u.password === credentials?.password
-            );
-            if (matched) {
-              return { id: matched.id, name: matched.name, email: matched.email, role: matched.role };
+          if (!credentials?.email || !credentials?.password) return null;
+
+          const { data: user, error } = await supabase
+            .from("users")
+            .select("*")
+            .eq("email", credentials.email.toLowerCase())
+            .single();
+
+          if (error) {
+            console.error("Supabase error looking up user:", error.message);
+            return null;
+          }
+
+          if (user && user.password === credentials.password) {
+            // Check if the account was deleted
+            if (user.status === "Deleted") {
+               throw new Error("This account has been deleted.");
             }
+            return { id: user.id.toString(), name: user.name, email: user.email, role: user.role };
           }
         } catch (e) {
-          console.error("Error reading users.json in NextAuth", e);
+          console.error("Error reading users from Supabase in NextAuth", e);
         }
 
         return null;
@@ -64,7 +62,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as any).role || "user"; // Default role to 'user' for OAuth logins
+        token.role = (user as any).role || "user";
       }
       return token;
     },

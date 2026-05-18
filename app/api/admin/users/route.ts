@@ -1,17 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import fs from "fs";
-import path from "path";
-
-const usersFilePath = path.join(process.cwd(), "lib", "users.json");
-
-// Default users in the system
-const defaultUsers = [
-  { id: "1", name: "Admin User", email: "admin@example.com", role: "admin", status: "Active" },
-  { id: "2", name: "Demo User", email: "user@example.com", role: "user", status: "Active" },
-  { id: "3", name: "John Doe", email: "john@example.com", role: "user", status: "Inactive" },
-];
+import { supabase } from "@/lib/supabase";
 
 export async function GET() {
   try {
@@ -20,37 +10,15 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let customUsers = [];
-    if (fs.existsSync(usersFilePath)) {
-      const data = fs.readFileSync(usersFilePath, "utf-8");
-      customUsers = JSON.parse(data || "[]");
-    }
+    const { data: users, error } = await supabase
+      .from("users")
+      .select("*")
+      .neq("status", "Deleted")
+      .order("created_at", { ascending: false });
 
-    // Combine default and custom users, making sure there are no duplicate email addresses
-    const combined = [...defaultUsers];
+    if (error) throw error;
 
-    customUsers.forEach((u: any) => {
-      const index = combined.findIndex(d => d.email.toLowerCase() === u.email.toLowerCase());
-      if (index !== -1) {
-        // If the custom user exists (e.g. role/status updated), overwrite the default attributes
-        combined[index] = {
-          ...combined[index],
-          role: u.role || combined[index].role,
-          status: u.status || combined[index].status,
-        };
-      } else {
-        combined.push({
-          id: u.id || String(combined.length + 1),
-          name: u.name,
-          email: u.email,
-          role: u.role || "user",
-          status: u.status || "Active",
-        });
-      }
-    });
-
-    const finalUsers = combined.filter(u => u.status !== "Deleted");
-    return NextResponse.json({ users: finalUsers });
+    return NextResponse.json({ users: users || [] });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Failed to fetch users" }, { status: 500 });
   }
@@ -68,41 +36,16 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    let users = [];
-    if (fs.existsSync(usersFilePath)) {
-      const data = fs.readFileSync(usersFilePath, "utf-8");
-      users = JSON.parse(data || "[]");
-    }
+    const { data: updatedUser, error } = await supabase
+      .from("users")
+      .update({ role, status })
+      .eq("email", email.toLowerCase())
+      .select()
+      .single();
 
-    // Find custom user
-    const userIndex = users.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase());
+    if (error) throw error;
 
-    if (userIndex !== -1) {
-      if (role) users[userIndex].role = role;
-      if (status) users[userIndex].status = status;
-      fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2));
-      return NextResponse.json({ success: true, user: users[userIndex] });
-    } else {
-      // If it's a default user, add them to lib/users.json with updated fields to persist changes
-      const defaultMatch = [
-        { id: "1", name: "Admin User", email: "admin@example.com", role: "admin", password: "admin123", status: "Active" },
-        { id: "2", name: "Demo User", email: "user@example.com", role: "user", password: "user123", status: "Active" },
-        { id: "3", name: "John Doe", email: "john@example.com", role: "user", password: "john123", status: "Inactive" },
-      ].find(d => d.email.toLowerCase() === email.toLowerCase());
-
-      if (defaultMatch) {
-        const newUser = {
-          ...defaultMatch,
-          role: role || defaultMatch.role,
-          status: status || defaultMatch.status,
-        };
-        users.push(newUser);
-        fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2));
-        return NextResponse.json({ success: true, user: newUser });
-      }
-
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    return NextResponse.json({ success: true, user: updatedUser });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Failed to update user" }, { status: 500 });
   }
@@ -120,26 +63,13 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    let users = [];
-    if (fs.existsSync(usersFilePath)) {
-      const data = fs.readFileSync(usersFilePath, "utf-8");
-      users = JSON.parse(data || "[]");
-    }
+    // Soft delete by updating status
+    const { error } = await supabase
+      .from("users")
+      .update({ status: "Deleted" })
+      .eq("email", email.toLowerCase());
 
-    const originalLength = users.length;
-    const newUsers = users.filter((u: any) => u.email.toLowerCase() !== email.toLowerCase());
-
-    const defaultMatch = [
-      { id: "1", name: "Admin User", email: "admin@example.com", role: "admin", password: "admin123", status: "Active" },
-      { id: "2", name: "Demo User", email: "user@example.com", role: "user", password: "user123", status: "Active" },
-      { id: "3", name: "John Doe", email: "john@example.com", role: "user", password: "john123", status: "Inactive" },
-    ].find(d => d.email.toLowerCase() === email.toLowerCase());
-
-    if (defaultMatch && originalLength === newUsers.length) {
-      newUsers.push({ ...defaultMatch, status: "Deleted" });
-    }
-
-    fs.writeFileSync(usersFilePath, JSON.stringify(newUsers, null, 2));
+    if (error) throw error;
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
