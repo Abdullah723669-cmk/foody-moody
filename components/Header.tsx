@@ -31,7 +31,7 @@ export default function Header() {
             {session ? (
               <>
                 <li>
-                  <Link href={session.user?.role === "admin" ? "/dashboard/admin" : "/dashboard/user"}>
+                  <Link href={(session.user as any)?.role === "admin" ? "/dashboard/admin" : "/dashboard/user"}>
                     Dashboard
                   </Link>
                 </li>
