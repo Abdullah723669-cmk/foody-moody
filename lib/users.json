@@ -1,0 +1,25 @@
+[
+  {
+    "id": "3",
+    "name": "MD ABDULLAH AL MAMUN",
+    "email": "mamun.renata52@gmail.com",
+    "password": "Mamun@1974",
+    "role": "user",
+    "status": "Active"
+  },
+  {
+    "id": "4",
+    "name": "Sohel Rana",
+    "email": "mamun.renata5200@gmail.com",
+    "password": "Sohel@1974",
+    "role": "user"
+  },
+  {
+    "id": "3",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "role": "user",
+    "password": "john123",
+    "status": "Deleted"
+  }
+]
