@@ -36,7 +36,17 @@ export default function AdminDashboardClient({ user }: { user: any }) {
       stocks = JSON.parse(savedStocks);
     }
 
-    initialProducts.forEach(p => {
+    // Load deleted products list
+    const deletedProductIds = new Set<number>();
+    const savedDeleted = localStorage.getItem("foody_moody_deleted_products");
+    if (savedDeleted) {
+      JSON.parse(savedDeleted).forEach((id: number) => deletedProductIds.add(id));
+    }
+
+    // Filter out deleted products from initialProducts
+    const filteredInitialProducts = initialProducts.filter(p => !deletedProductIds.has(p.id));
+
+    filteredInitialProducts.forEach(p => {
       if (stocks[p.id] === undefined) stocks[p.id] = 50;
     });
 
@@ -44,10 +54,12 @@ export default function AdminDashboardClient({ user }: { user: any }) {
     const savedCustom = localStorage.getItem("foody_moody_custom_products");
     if (savedCustom) {
       const parsedCustom = JSON.parse(savedCustom);
-      setProducts([...initialProducts, ...parsedCustom]);
+      setProducts([...filteredInitialProducts, ...parsedCustom]);
       parsedCustom.forEach((p: any) => {
         if (stocks[p.id] === undefined) stocks[p.id] = p.stock || 50;
       });
+    } else {
+      setProducts(filteredInitialProducts);
     }
     setProductStocks(stocks);
     localStorage.setItem("foody_moody_product_stocks", JSON.stringify(stocks));
@@ -201,6 +213,39 @@ export default function AdminDashboardClient({ user }: { user: any }) {
     }
   };
 
+  const handleDeleteProduct = (id: number, productName: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${productName}"?`)) return;
+    
+    // Add to deleted products list
+    const savedDeleted = localStorage.getItem("foody_moody_deleted_products");
+    const deletedList = savedDeleted ? JSON.parse(savedDeleted) : [];
+    if (!deletedList.includes(id)) {
+      deletedList.push(id);
+      localStorage.setItem("foody_moody_deleted_products", JSON.stringify(deletedList));
+    }
+    
+    // Remove from custom products in localStorage if it exists
+    const savedCustom = localStorage.getItem("foody_moody_custom_products");
+    if (savedCustom) {
+      const customList = JSON.parse(savedCustom);
+      const filteredCustom = customList.filter((p: any) => p.id !== id);
+      localStorage.setItem("foody_moody_custom_products", JSON.stringify(filteredCustom));
+    }
+
+    // Update products state
+    setProducts(prev => prev.filter(p => p.id !== id));
+
+    // Remove from stocks
+    setProductStocks(prev => {
+      const newStocks = { ...prev };
+      delete newStocks[id];
+      localStorage.setItem("foody_moody_product_stocks", JSON.stringify(newStocks));
+      return newStocks;
+    });
+
+    showToast(`Product "${productName}" deleted successfully!`);
+  };
+
   const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProdName || !newProdPrice) return;
@@ -336,7 +381,7 @@ export default function AdminDashboardClient({ user }: { user: any }) {
                     </td>
                     <td>
                       <button className="action-btn edit" onClick={() => handleSaveStock(p.id)}>Save Stock</button>
-                      <button className="action-btn delete">Delete</button>
+                      <button className="action-btn delete" onClick={() => handleDeleteProduct(p.id, p.name)}>Delete</button>
                     </td>
                   </tr>
                 ))}

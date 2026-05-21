@@ -9,10 +9,23 @@ export default function HomePage() {
   const [productsList, setProductsList] = useState(initialProducts);
 
   useEffect(() => {
+    // Load deleted products list
+    const deletedProductIds = new Set<number>();
+    const savedDeleted = localStorage.getItem("foody_moody_deleted_products");
+    if (savedDeleted) {
+      JSON.parse(savedDeleted).forEach((id: number) => deletedProductIds.add(id));
+    }
+
+    // Filter out deleted products from initialProducts
+    const filteredInitialProducts = initialProducts.filter(p => !deletedProductIds.has(p.id));
+
+    // Load custom products and filter out deleted ones
     const savedCustom = localStorage.getItem("foody_moody_custom_products");
     if (savedCustom) {
-      const parsedCustom = JSON.parse(savedCustom);
-      setProductsList([...initialProducts, ...parsedCustom]);
+      const parsedCustom = JSON.parse(savedCustom).filter((p: any) => !deletedProductIds.has(p.id));
+      setProductsList([...filteredInitialProducts, ...parsedCustom]);
+    } else {
+      setProductsList(filteredInitialProducts);
     }
   }, []);
 
