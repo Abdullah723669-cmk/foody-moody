@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { products as initialProducts } from "@/lib/data";
 import { UploadButton } from "@/utils/uploadthing";
+import InvoiceModal from "@/components/InvoiceModal";
 
 export default function AdminDashboardClient({ user }: { user: any }) {
   const [activeTab, setActiveTab] = useState("overview");
@@ -443,20 +444,31 @@ export default function AdminDashboardClient({ user }: { user: any }) {
               <thead>
                 <tr>
                   <th>Order ID</th>
-                  <th>Customer</th>
+                  <th>Customer & Contact</th>
+                  <th>Delivery Address</th>
                   <th>Date</th>
                   <th>Total</th>
                   <th>Status</th>
-                  <th>Invoice</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.map(o => (
                   <tr key={o.id}>
-                    <td>#{o.id}</td>
-                    <td>{o.user}</td>
+                    <td><strong>#{o.id}</strong></td>
+                    <td>
+                      <div style={{ fontWeight: "600" }}>{o.user}</div>
+                      {o.phone && (
+                        <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "2px" }}>
+                          📞 {o.phone}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ maxWidth: "200px", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                      {o.address || "123 Fast Food Blvd"}
+                    </td>
                     <td>{o.date}</td>
-                    <td>${o.total.toFixed(2)}</td>
+                    <td><strong style={{ color: "var(--accent-3)" }}>${o.total.toFixed(2)}</strong></td>
                     <td>
                       <select 
                         value={orderStatuses[o.id] ?? o.status} 
@@ -471,7 +483,7 @@ export default function AdminDashboardClient({ user }: { user: any }) {
                     </td>
                     <td>
                       <button className="action-btn edit" onClick={() => handleSaveStatus(o.id)}>Save Status</button>
-                      <button className="action-btn view" onClick={() => setSelectedInvoice(o)}>View Invoice</button>
+                      <button className="action-btn view" onClick={() => setSelectedInvoice(o)}>🧾 View Invoice</button>
                     </td>
                   </tr>
                 ))}
@@ -481,72 +493,12 @@ export default function AdminDashboardClient({ user }: { user: any }) {
         </div>
       )}
 
-      {/* Invoice Modal for Printing */}
-      {selectedInvoice && (
-        <div className="invoice-overlay">
-          <div className="invoice-modal printable-invoice">
-            <div className="invoice-header">
-              <h2>INVOICE #{selectedInvoice.id}</h2>
-              <button className="close-btn no-print" onClick={() => setSelectedInvoice(null)}>✕</button>
-            </div>
-            
-            <div className="invoice-body">
-              <div className="invoice-meta">
-                <div>
-                  <strong>From:</strong><br/>
-                  Foody Moody Inc.<br/>
-                  123 Fast Food Blvd.<br/>
-                  contact@foodymoody.com
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <strong>To:</strong><br/>
-                  {selectedInvoice.user}<br/>
-                  Date: {selectedInvoice.date}<br/>
-                  Status: {orderStatuses[selectedInvoice.id] ?? selectedInvoice.status}
-                </div>
-              </div>
-
-              <table className="invoice-table">
-                <thead>
-                  <tr>
-                    <th>Item</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                    <th>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedInvoice.items.map((item: any, idx: number) => (
-                    <tr key={idx}>
-                      <td>{item.name}</td>
-                      <td>{item.qty}</td>
-                      <td>${item.price.toFixed(2)}</td>
-                      <td>${(item.qty * item.price).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <div className="invoice-total">
-                <p>Subtotal: ${(selectedInvoice.total - (selectedInvoice.total > 25 ? 0 : 3.99) - (selectedInvoice.total * 0.08)).toFixed(2)}</p>
-                <p>Tax (8%): ${(selectedInvoice.total * 0.08).toFixed(2)}</p>
-                <p>Delivery: ${selectedInvoice.total > 25 ? "0.00" : "3.99"}</p>
-                <h3>Grand Total: ${selectedInvoice.total.toFixed(2)}</h3>
-              </div>
-
-              {/* Return & Refund Policy Footer */}
-              <div className="invoice-return-policy" style={{ marginTop: '2.5rem', paddingTop: '1rem', borderTop: '1px dashed var(--border)', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                <strong>Return & Refund Policy:</strong><br/>
-                If you are not 100% satisfied with your meal, please contact us within 30 minutes of delivery for a full refund or replacement. Food items cannot be returned after consumption.
-              </div>
-            </div>
-
-            <div className="invoice-footer no-print">
-              <button className="auth-btn credentials-btn" onClick={handlePrint}>Print / Save as PDF</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Professional Invoice Modal */}
+      <InvoiceModal
+        invoice={selectedInvoice}
+        onClose={() => setSelectedInvoice(null)}
+        statusOverride={selectedInvoice ? (orderStatuses[selectedInvoice.id] ?? selectedInvoice.status) : undefined}
+      />
 
       {/* Add Product Modal */}
       {isAddModalOpen && (

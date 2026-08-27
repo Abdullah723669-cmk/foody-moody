@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useCart } from "@/lib/CartContext";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { InvoiceContent } from "@/components/InvoiceModal";
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, clearCart, totalItems, totalPrice } =
@@ -261,62 +262,32 @@ export default function CartPage() {
             Thank you for ordering with Foody Moody. Your food is being prepared!
           </p>
 
-          {/* Printable Invoice Component */}
-          <div className="invoice-modal printable-invoice" style={{ maxWidth: "100%", border: "1px solid var(--border)", background: "var(--bg-card)", boxShadow: "none", margin: "2rem 0" }}>
-            <div className="invoice-header">
-              <h2>INVOICE #{placedOrderId}</h2>
-            </div>
-            
-            <div className="invoice-body" style={{ textAlign: "left" }}>
-              <div className="invoice-meta" style={{ display: "flex", justifyContent: "space-between", margin: "1.5rem 0" }}>
-                <div>
-                  <strong>From:</strong><br/>
-                  Foody Moody Inc.<br/>
-                  123 Fast Food Blvd.<br/>
-                  contact@foodymoody.com
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <strong>To:</strong><br/>
-                  {session?.user?.name || "Customer"}<br/>
-                  Address: {address}<br/>
-                  Phone: {phone}
-                </div>
-              </div>
-
-              <table className="invoice-table" style={{ width: "100%", borderCollapse: "collapse", margin: "1.5rem 0" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                    <th style={{ padding: "8px 0", textAlign: "left" }}>Item</th>
-                    <th style={{ padding: "8px 0", textAlign: "center" }}>Qty</th>
-                    <th style={{ padding: "8px 0", textAlign: "right" }}>Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {checkedOutItems.map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: "1px solid var(--border)" }}>
-                      <td style={{ padding: "8px 0" }}>{item.name}</td>
-                      <td style={{ padding: "8px 0", textAlign: "center" }}>{item.quantity}</td>
-                      <td style={{ padding: "8px 0", textAlign: "right" }}>${(item.price * item.quantity).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <div className="invoice-total" style={{ textAlign: "right", marginTop: "1.5rem" }}>
-                <h3>Grand Total: ${checkedOutTotal.toFixed(2)}</h3>
-              </div>
-
-              {/* Return Policy at Invoice Footer */}
-              <div className="invoice-return-policy" style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px dashed var(--border)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                <strong>Return & Refund Policy:</strong><br/>
-                If you are not 100% satisfied with your meal, please contact us within 30 minutes of delivery for a full refund or replacement. Food items cannot be returned after consumption.
-              </div>
-            </div>
+          {/* Professional Printable Invoice Component */}
+          <div style={{ margin: "2rem 0", width: "100%" }}>
+            <InvoiceContent
+              invoice={{
+                id: placedOrderId || "ORD-PENDING",
+                user: session?.user?.name || "Customer",
+                userEmail: session?.user?.email || "",
+                date: new Date().toISOString().split("T")[0],
+                status: "Processing",
+                address: address,
+                phone: phone,
+                paymentMethod: paymentMethod === "cod" ? "Cash on Delivery (COD)" : "Credit / Debit Card",
+                total: checkedOutTotal,
+                items: checkedOutItems.map((item) => ({
+                  id: item.id,
+                  name: item.name,
+                  qty: item.quantity,
+                  price: item.price,
+                })),
+              }}
+            />
           </div>
 
           <div className="no-print" style={{ display: "flex", gap: "1rem", width: "100%" }}>
             <button className="checkout-btn" style={{ flex: 1 }} onClick={handlePrintInvoice}>
-              Print / Save PDF
+              🖨️ Print / Save PDF
             </button>
             <button
               className="checkout-btn"

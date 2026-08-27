@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import InvoiceModal from "@/components/InvoiceModal";
 
 export default function UserDashboardClient({ user }: { user: any }) {
   const [orders, setOrders] = useState<any[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
   useEffect(() => {
     // Load orders from Supabase API
@@ -40,12 +42,13 @@ export default function UserDashboardClient({ user }: { user: any }) {
                     <th>Items</th>
                     <th>Total</th>
                     <th>Status</th>
+                    <th>Invoice</th>
                   </tr>
                 </thead>
                 <tbody>
                   {orders.map((o) => (
                     <tr key={o.id}>
-                      <td>#{o.id}</td>
+                      <td><strong>#{o.id}</strong></td>
                       <td>{o.date}</td>
                       <td>
                         {o.items.map((item: any, idx: number) => (
@@ -54,11 +57,20 @@ export default function UserDashboardClient({ user }: { user: any }) {
                           </div>
                         ))}
                       </td>
-                      <td>${o.total.toFixed(2)}</td>
+                      <td><strong style={{ color: "var(--accent-3)" }}>${o.total.toFixed(2)}</strong></td>
                       <td>
                         <span className={`status-badge ${o.status.toLowerCase() === "delivered" ? "active" : "inactive"}`} style={{ textTransform: "capitalize" }}>
                           {o.status}
                         </span>
+                      </td>
+                      <td>
+                        <button
+                          className="action-btn view"
+                          onClick={() => setSelectedInvoice(o)}
+                          style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                        >
+                          🧾 View Invoice
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -68,12 +80,19 @@ export default function UserDashboardClient({ user }: { user: any }) {
           )}
         </div>
         <div className="dashboard-card" style={{ height: "fit-content" }}>
-          <h3>Saved Addresses</h3>
-          <p style={{ marginTop: "0.5rem", color: "var(--text-secondary)" }}>
-            {orders.length > 0 ? orders[0].address : "123 Main St, Springfield"}
-          </p>
+          <h3>Saved Delivery Information</h3>
+          <div style={{ marginTop: "0.8rem", fontSize: "0.9rem", color: "var(--text-secondary)", lineHeight: "1.6" }}>
+            <p><strong>Address:</strong> {orders.length > 0 ? (orders[0].address || "123 Main St, Springfield") : "123 Main St, Springfield"}</p>
+            <p><strong>Phone:</strong> {orders.length > 0 ? (orders[0].phone || "+1 (555) 019-2834") : "+1 (555) 019-2834"}</p>
+          </div>
         </div>
       </div>
+
+      {/* Invoice Modal */}
+      <InvoiceModal
+        invoice={selectedInvoice}
+        onClose={() => setSelectedInvoice(null)}
+      />
     </div>
   );
 }
