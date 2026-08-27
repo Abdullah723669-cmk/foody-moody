@@ -186,10 +186,10 @@ export function InvoiceContent({ invoice, statusOverride }: InvoiceContentProps)
               </h1>
             </div>
             <p style={{ margin: "3px 0 0", fontSize: "0.88rem", color: "var(--text-muted)", fontWeight: "500" }}>
-              Premium Artisan Fast Food & Gourmet Dining
+              Premium Artisan Fast Food & Gourmet Dining at Your Doorstep 
             </p>
             <p style={{ margin: "3px 0 0", fontSize: "0.82rem", color: "var(--text-secondary)" }}>
-              📍 123 Fast Food Blvd, Gourmet District, NY 10001
+              📍 Joorpukur par, Joydebpur, Gazipur
             </p>
           </div>
         </div>
@@ -283,10 +283,10 @@ export function InvoiceContent({ invoice, statusOverride }: InvoiceContentProps)
             Store Information & Support
           </div>
           <div style={{ fontSize: "1.05rem", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>
-            🍔 Foody Moody Inc.
+            🍔 Foody Moody Fast Food
           </div>
           <div style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginBottom: "6px" }}>
-            📞 <strong>Direct:</strong> +1 (800) 555-FOOD (3663)
+            📞 <strong>Direct:</strong> 01821406541 01840954822
           </div>
           <div style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginBottom: "6px" }}>
             ✉️ <strong>Support:</strong> contact@foodymoody.com
@@ -432,9 +432,9 @@ export function InvoiceContent({ invoice, statusOverride }: InvoiceContentProps)
         </div>
         <div style={{ textAlign: "right" }}>
           <strong style={{ color: "var(--text-secondary)", display: "block", marginBottom: "4px" }}>
-            Thank you for dining with Foody Moody!
+            Thank you for dining with Foody Moody Fast!
           </strong>
-          For any questions regarding this invoice, email <u>support@foodymoody.com</u> or call us directly at <u>+1 (800) 555-3663</u>.
+          For any questions regarding this invoice, email <u>support@foodymoody.com</u> or call us directly at <u>01821406541 01840954822</u>.
         </div>
       </div>
     </div>
