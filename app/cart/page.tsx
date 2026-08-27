@@ -52,87 +52,47 @@ export default function CartPage() {
     setCheckoutStep("checkout");
   };
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address || !phone) return;
 
     setIsProcessing(true);
-    setTimeout(() => {
-      const orderId = Math.floor(100000 + Math.random() * 900000);
-      
-      const newOrder = {
-        id: orderId,
+    try {
+      const orderPayload = {
         user: session?.user?.name || "Customer",
         userEmail: session?.user?.email || "user@example.com",
-        date: new Date().toISOString().split("T")[0],
-        total: checkedOutTotal,
-        status: "Pending",
         address: address,
         phone: phone,
-        items: checkedOutItems.map(item => ({
+        total: checkedOutTotal,
+        items: checkedOutItems.map((item) => ({
+          id: item.id,
           name: item.name,
           qty: item.quantity,
-          price: item.price
-        }))
+          price: item.price,
+        })),
       };
 
-      // Retrieve existing orders or seed with default list
-      const existingOrdersStr = localStorage.getItem("foody_moody_orders");
-      let allOrders = [];
-      if (existingOrdersStr) {
-        allOrders = JSON.parse(existingOrdersStr);
-      } else {
-        allOrders = [
-          {
-            id: 101,
-            user: "Demo User",
-            userEmail: "user@example.com",
-            date: "2026-05-18",
-            total: 45.99,
-            status: "Pending",
-            address: "123 Main St, Springfield",
-            phone: "+1 (555) 019-2834",
-            items: [
-              { name: "Classic Smash Burger", qty: 2, price: 8.99 },
-              { name: "Loaded Fries", qty: 1, price: 6.49 }
-            ]
-          },
-          {
-            id: 102,
-            user: "John Doe",
-            userEmail: "john@example.com",
-            date: "2026-05-17",
-            total: 12.99,
-            status: "Delivered",
-            address: "456 Oak St, Metropolis",
-            phone: "+1 (555) 987-6543",
-            items: [
-              { name: "Margherita Pizza", qty: 1, price: 12.99 }
-            ]
-          }
-        ];
-      }
-
-      allOrders.unshift(newOrder);
-      localStorage.setItem("foody_moody_orders", JSON.stringify(allOrders));
-
-      const stocksData = localStorage.getItem("foody_moody_product_stocks");
-      let stocks: Record<number, number> = {};
-      if (stocksData) {
-        stocks = JSON.parse(stocksData);
-      }
-      checkedOutItems.forEach(item => {
-        const currentStock = stocks[item.id] !== undefined ? stocks[item.id] : (item.stock ?? 50);
-        stocks[item.id] = Math.max(0, currentStock - item.quantity);
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderPayload),
       });
-      localStorage.setItem("foody_moody_product_stocks", JSON.stringify(stocks));
-      window.dispatchEvent(new Event("storage"));
 
-      setPlacedOrderId(orderId);
+      const data = await res.json();
+      if (res.ok && data.success && data.order) {
+        setPlacedOrderId(data.order.id);
+        setIsProcessing(false);
+        setCheckoutStep("success");
+        clearCart();
+      } else {
+        alert(data.error || "Failed to place order. Please try again.");
+        setIsProcessing(false);
+      }
+    } catch (err: any) {
+      console.error("Order error:", err);
+      alert("Error placing order. Please try again.");
       setIsProcessing(false);
-      setCheckoutStep("success");
-      clearCart();
-    }, 1500);
+    }
   };
 
   const handlePrintInvoice = () => {

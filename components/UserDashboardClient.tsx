@@ -6,34 +6,16 @@ export default function UserDashboardClient({ user }: { user: any }) {
   const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
-    // Load orders from localStorage
-    const savedOrders = localStorage.getItem("foody_moody_orders");
-    if (savedOrders) {
-      const allOrders = JSON.parse(savedOrders);
-      // Filter orders placed by this specific user email
-      const userOrders = allOrders.filter((o: any) => o.userEmail === user.email);
-      setOrders(userOrders);
-    } else {
-      // Seed a default order for demo user if none exists
-      const defaultOrders = [
-        {
-          id: 101,
-          user: user.name || "Demo User",
-          userEmail: user.email || "user@example.com",
-          date: new Date().toISOString().split("T")[0],
-          total: 45.99,
-          status: "Pending",
-          address: "123 Main St, Springfield",
-          phone: "+1 (555) 019-2834",
-          items: [
-            { name: "Classic Smash Burger", qty: 2, price: 8.99 },
-            { name: "Loaded Fries", qty: 1, price: 6.49 }
-          ]
+    // Load orders from Supabase API
+    const userEmail = user?.email || "";
+    fetch(`/api/orders?userEmail=${encodeURIComponent(userEmail)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.orders) {
+          setOrders(data.orders);
         }
-      ];
-      localStorage.setItem("foody_moody_orders", JSON.stringify(defaultOrders));
-      setOrders(defaultOrders.filter((o: any) => o.userEmail === user.email));
-    }
+      })
+      .catch((err) => console.error("Error fetching user orders:", err));
   }, [user]);
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { useCart } from "@/lib/CartContext";
 import type { Product } from "@/lib/data";
@@ -8,24 +8,7 @@ import type { Product } from "@/lib/data";
 export default function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
-  const [stock, setStock] = useState<number | null>(null);
-
-  useEffect(() => {
-    const fetchStock = () => {
-      const stocksData = localStorage.getItem("foody_moody_product_stocks");
-      if (stocksData) {
-        const stocks = JSON.parse(stocksData);
-        if (stocks[product.id] !== undefined) {
-          setStock(stocks[product.id]);
-          return;
-        }
-      }
-      setStock((product as any).stock ?? 50);
-    };
-    fetchStock();
-    window.addEventListener("storage", fetchStock);
-    return () => window.removeEventListener("storage", fetchStock);
-  }, [product.id, product]);
+  const stock = (product as any).stock !== undefined ? (product as any).stock : 50;
 
   const handleAdd = () => {
     if (stock !== null && stock <= 0) return;

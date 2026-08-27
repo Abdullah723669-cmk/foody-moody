@@ -29,101 +29,50 @@ export default function AdminDashboardClient({ user }: { user: any }) {
   const [orderStatuses, setOrderStatuses] = useState<Record<number, string>>({});
 
   useEffect(() => {
-    // 1. Initialize product stocks
-    let stocks: Record<number, number> = {};
-    const savedStocks = localStorage.getItem("foody_moody_product_stocks");
-    if (savedStocks) {
-      stocks = JSON.parse(savedStocks);
-    }
-
-    // Load deleted products list
-    const deletedProductIds = new Set<number>();
-    const savedDeleted = localStorage.getItem("foody_moody_deleted_products");
-    if (savedDeleted) {
-      JSON.parse(savedDeleted).forEach((id: number) => deletedProductIds.add(id));
-    }
-
-    // Filter out deleted products from initialProducts
-    const filteredInitialProducts = initialProducts.filter(p => !deletedProductIds.has(p.id));
-
-    filteredInitialProducts.forEach(p => {
-      if (stocks[p.id] === undefined) stocks[p.id] = 50;
-    });
-
-    // 2. Load custom products
-    const savedCustom = localStorage.getItem("foody_moody_custom_products");
-    if (savedCustom) {
-      const parsedCustom = JSON.parse(savedCustom);
-      setProducts([...filteredInitialProducts, ...parsedCustom]);
-      parsedCustom.forEach((p: any) => {
-        if (stocks[p.id] === undefined) stocks[p.id] = p.stock || 50;
-      });
-    } else {
-      setProducts(filteredInitialProducts);
-    }
-    setProductStocks(stocks);
-    localStorage.setItem("foody_moody_product_stocks", JSON.stringify(stocks));
-
-    // 3. Load orders
-    const savedOrders = localStorage.getItem("foody_moody_orders");
-    if (savedOrders) {
-      const allOrders = JSON.parse(savedOrders);
-      setOrders(allOrders);
-      
-      const statuses: Record<number, string> = {};
-      allOrders.forEach((o: any) => {
-        statuses[o.id] = o.status;
-      });
-      setOrderStatuses(statuses);
-    } else {
-      const defaultOrders = [
-        {
-          id: 101,
-          user: "Demo User",
-          userEmail: "user@example.com",
-          date: "2026-05-18",
-          total: 45.99,
-          status: "Pending",
-          address: "123 Main St, Springfield",
-          phone: "+1 (555) 019-2834",
-          items: [
-            { name: "Classic Smash Burger", qty: 2, price: 8.99 },
-            { name: "Loaded Fries", qty: 1, price: 6.49 }
-          ]
-        },
-        {
-          id: 102,
-          user: "John Doe",
-          userEmail: "john@example.com",
-          date: "2026-05-17",
-          total: 12.99,
-          status: "Delivered",
-          address: "456 Oak St, Metropolis",
-          phone: "+1 (555) 987-6543",
-          items: [
-            { name: "Margherita Pizza", qty: 1, price: 12.99 }
-          ]
+    // 1. Fetch products from Supabase API
+    fetch("/api/products")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.products && data.products.length > 0) {
+          setProducts(data.products);
+          const stocks: Record<number, number> = {};
+          data.products.forEach((p: any) => {
+            stocks[p.id] = p.stock !== undefined ? p.stock : 50;
+          });
+          setProductStocks(stocks);
+        } else {
+          setProducts(initialProducts);
         }
-      ];
-      localStorage.setItem("foody_moody_orders", JSON.stringify(defaultOrders));
-      setOrders(defaultOrders);
-      
-      const statuses: Record<number, string> = {};
-      defaultOrders.forEach((o) => {
-        statuses[o.id] = o.status;
+      })
+      .catch((err) => {
+        console.error("Error fetching products:", err);
+        setProducts(initialProducts);
       });
-      setOrderStatuses(statuses);
-    }
 
-    // 4. Fetch users from dynamic API
+    // 2. Fetch orders from Supabase API
+    fetch("/api/orders")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.orders) {
+          setOrders(data.orders);
+          const statuses: Record<number, string> = {};
+          data.orders.forEach((o: any) => {
+            statuses[o.id] = o.status;
+          });
+          setOrderStatuses(statuses);
+        }
+      })
+      .catch((err) => console.error("Error fetching orders:", err));
+
+    // 3. Fetch users from dynamic API
     fetch("/api/admin/users")
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         if (data.users) {
           setUsers(data.users);
         }
       })
-      .catch(err => console.error("Error fetching users:", err));
+      .catch((err) => console.error("Error fetching users:", err));
   }, []);
   
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -135,36 +84,72 @@ export default function AdminDashboardClient({ user }: { user: any }) {
   };
 
   const handleStockChange = (id: number, val: number) => {
-    setProductStocks(prev => ({ ...prev, [id]: val }));
+    setProductStocks((prev) => ({ ...prev, [id]: val }));
   };
 
-  const handleSaveStock = (id: number) => {
-    localStorage.setItem("foody_moody_product_stocks", JSON.stringify(productStocks));
-    window.dispatchEvent(new Event("storage"));
-    showToast(`Stock updated successfully to ${productStocks[id]}!`);
+  const handleSaveStock = async (id: number) => {
+    try {
+      const res = await fetch("/api/products", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          stock: productStocks[id],
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`Stock updated successfully in Supabase to ${productStocks[id]}!`);
+      } else {
+        showToast(data.error || "Failed to update stock in Supabase");
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast("Error updating stock in Supabase");
+    }
   };
 
   const handleStatusChange = (id: number, status: string) => {
-    setOrderStatuses(prev => ({ ...prev, [id]: status }));
+    setOrderStatuses((prev) => ({ ...prev, [id]: status }));
   };
 
-  const handleSaveStatus = (id: number) => {
-    const updatedOrders = orders.map(o => o.id === id ? { ...o, status: orderStatuses[id] } : o);
-    setOrders(updatedOrders);
-    localStorage.setItem("foody_moody_orders", JSON.stringify(updatedOrders));
-    showToast(`Order #${id} status updated to ${orderStatuses[id]}!`);
+  const handleSaveStatus = async (id: number) => {
+    try {
+      const res = await fetch("/api/orders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          status: orderStatuses[id],
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === id ? { ...o, status: orderStatuses[id] } : o))
+        );
+        showToast(`Order #${id} status updated in Supabase to ${orderStatuses[id]}!`);
+      } else {
+        showToast(data.error || "Failed to update order status in Supabase");
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast("Error updating order status in Supabase");
+    }
   };
 
   const handleUserRoleChange = (email: string, role: string) => {
-    setUsers(prev => prev.map(u => u.email === email ? { ...u, role } : u));
+    setUsers((prev) => prev.map((u) => (u.email === email ? { ...u, role } : u)));
   };
 
   const handleUserStatusChange = (email: string, status: string) => {
-    setUsers(prev => prev.map(u => u.email === email ? { ...u, status } : u));
+    setUsers((prev) => prev.map((u) => (u.email === email ? { ...u, status } : u)));
   };
 
   const handleSaveUser = async (email: string) => {
-    const userToSave = users.find(u => u.email === email);
+    const userToSave = users.find((u) => u.email === email);
     if (!userToSave) return;
 
     try {
@@ -174,8 +159,8 @@ export default function AdminDashboardClient({ user }: { user: any }) {
         body: JSON.stringify({
           email: userToSave.email,
           role: userToSave.role,
-          status: userToSave.status
-        })
+          status: userToSave.status,
+        }),
       });
 
       const data = await res.json();
@@ -192,17 +177,17 @@ export default function AdminDashboardClient({ user }: { user: any }) {
 
   const handleDeleteUser = async (email: string) => {
     if (!window.confirm(`Are you sure you want to delete user ${email}?`)) return;
-    
+
     try {
       const res = await fetch("/api/admin/users", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setUsers(prev => prev.filter(u => u.email !== email));
+        setUsers((prev) => prev.filter((u) => u.email !== email));
         showToast(`User deleted successfully!`);
       } else {
         showToast(data.error || "Failed to delete user");
@@ -213,76 +198,74 @@ export default function AdminDashboardClient({ user }: { user: any }) {
     }
   };
 
-  const handleDeleteProduct = (id: number, productName: string) => {
+  const handleDeleteProduct = async (id: number, productName: string) => {
     if (!window.confirm(`Are you sure you want to delete "${productName}"?`)) return;
-    
-    // Add to deleted products list
-    const savedDeleted = localStorage.getItem("foody_moody_deleted_products");
-    const deletedList = savedDeleted ? JSON.parse(savedDeleted) : [];
-    if (!deletedList.includes(id)) {
-      deletedList.push(id);
-      localStorage.setItem("foody_moody_deleted_products", JSON.stringify(deletedList));
+
+    try {
+      const res = await fetch("/api/products", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // Update products state
+        setProducts((prev) => prev.filter((p) => p.id !== id));
+        setProductStocks((prev) => {
+          const newStocks = { ...prev };
+          delete newStocks[id];
+          return newStocks;
+        });
+        showToast(`Product "${productName}" deleted from Supabase successfully!`);
+      } else {
+        showToast(data.error || "Failed to delete product from Supabase");
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast("Error deleting product from Supabase");
     }
-    
-    // Remove from custom products in localStorage if it exists
-    const savedCustom = localStorage.getItem("foody_moody_custom_products");
-    if (savedCustom) {
-      const customList = JSON.parse(savedCustom);
-      const filteredCustom = customList.filter((p: any) => p.id !== id);
-      localStorage.setItem("foody_moody_custom_products", JSON.stringify(filteredCustom));
-    }
-
-    // Update products state
-    setProducts(prev => prev.filter(p => p.id !== id));
-
-    // Remove from stocks
-    setProductStocks(prev => {
-      const newStocks = { ...prev };
-      delete newStocks[id];
-      localStorage.setItem("foody_moody_product_stocks", JSON.stringify(newStocks));
-      return newStocks;
-    });
-
-    showToast(`Product "${productName}" deleted successfully!`);
   };
 
-  const handleAddProduct = (e: React.FormEvent) => {
+  const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProdName || !newProdPrice) return;
 
-    const newId = Math.floor(1000 + Math.random() * 9000);
-    const newProduct = {
-      id: newId,
-      name: newProdName,
-      slug: newProdName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      description: `Delicious hot freshly made ${newProdName}. Custom chef special recipe!`,
-      price: parseFloat(newProdPrice) || 0,
-      category: newProdCategory,
-      image: newProdImage || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=500&q=80",
-      rating: 4.8,
-      reviews: 1,
-      stock: parseInt(newProdStock) || 50
-    };
+    try {
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newProdName,
+          category: newProdCategory,
+          price: parseFloat(newProdPrice) || 0,
+          stock: parseInt(newProdStock) || 50,
+          image: newProdImage || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=500&q=80",
+        }),
+      });
 
-    // Save to localStorage
-    const savedCustom = localStorage.getItem("foody_moody_custom_products");
-    const customList = savedCustom ? JSON.parse(savedCustom) : [];
-    customList.push(newProduct);
-    localStorage.setItem("foody_moody_custom_products", JSON.stringify(customList));
+      const data = await res.json();
+      if (res.ok && data.success && data.product) {
+        const created = data.product;
+        setProducts((prev) => [...prev, created]);
+        setProductStocks((prev) => ({ ...prev, [created.id]: created.stock }));
 
-    // Update state
-    setProducts([...initialProducts, ...customList]);
-    setProductStocks(prev => ({ ...prev, [newId]: newProduct.stock }));
+        // Reset Form & Close Modal
+        setNewProdName("");
+        setNewProdCategory("burgers");
+        setNewProdPrice("");
+        setNewProdStock("50");
+        setNewProdImage("");
+        setIsAddModalOpen(false);
 
-    // Reset Form & Close Modal
-    setNewProdName("");
-    setNewProdCategory("burgers");
-    setNewProdPrice("");
-    setNewProdStock("50");
-    setNewProdImage("");
-    setIsAddModalOpen(false);
-
-    showToast(`Product "${newProduct.name}" added successfully!`);
+        showToast(`Product "${created.name}" added to Supabase successfully!`);
+      } else {
+        showToast(data.error || "Failed to add product to Supabase");
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast("Error adding product to Supabase");
+    }
   };
 
   const handlePrint = () => {
