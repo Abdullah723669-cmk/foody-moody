@@ -24,6 +24,48 @@ export interface InvoiceData {
   items: InvoiceItem[];
 }
 
+export function numberToWords(amount: number): string {
+  if (isNaN(amount) || amount === 0) return "Zero Dollars Only";
+
+  const ones = [
+    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+    "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+    "Seventeen", "Eighteen", "Nineteen"
+  ];
+  const tens = [
+    "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"
+  ];
+
+  function helper(n: number): string {
+    if (n === 0) return "";
+    if (n < 20) return ones[n] + " ";
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? "-" + ones[n % 10] : "") + " ";
+    if (n < 1000) return ones[Math.floor(n / 100)] + " Hundred " + helper(n % 100);
+    if (n < 1000000) return helper(Math.floor(n / 1000)) + "Thousand " + helper(n % 1000);
+    if (n < 1000000000) return helper(Math.floor(n / 1000000)) + "Million " + helper(n % 1000000);
+    return helper(Math.floor(n / 1000000000)) + "Billion " + helper(n % 1000000000);
+  }
+
+  const dollars = Math.floor(amount);
+  const cents = Math.round((amount - dollars) * 100);
+
+  let words = "";
+  if (dollars > 0) {
+    words += helper(dollars).trim() + (dollars === 1 ? " Dollar" : " Dollars");
+  }
+
+  if (cents > 0) {
+    const centsWords = helper(cents).trim();
+    if (dollars > 0) {
+      words += " and " + centsWords + (cents === 1 ? " Cent" : " Cents");
+    } else {
+      words += centsWords + (cents === 1 ? " Cent" : " Cents");
+    }
+  }
+
+  return (words.trim() || "Zero Dollars") + " Only";
+}
+
 interface InvoiceContentProps {
   invoice: InvoiceData;
   statusOverride?: string;
@@ -319,11 +361,11 @@ export function InvoiceContent({ invoice, statusOverride }: InvoiceContentProps)
       }}>
         <div style={{
           width: "100%",
-          maxWidth: "340px",
+          maxWidth: "400px",
           background: "rgba(255, 255, 255, 0.03)",
           border: "1px solid var(--border)",
           borderRadius: "var(--radius-sm)",
-          padding: "1.2rem"
+          padding: "1.25rem"
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "0.9rem", color: "var(--text-secondary)" }}>
             <span>Subtotal:</span>
@@ -345,8 +387,26 @@ export function InvoiceContent({ invoice, statusOverride }: InvoiceContentProps)
             borderTop: "2px solid var(--border)"
           }}>
             <span style={{ fontSize: "1.1rem", fontWeight: "700", color: "var(--text-primary)" }}>Grand Total:</span>
-            <span style={{ fontSize: "1.35rem", fontWeight: "800", color: "var(--accent-3)" }}>
+            <span style={{ fontSize: "1.4rem", fontWeight: "800", color: "var(--accent-3)" }}>
               ${finalTotal.toFixed(2)}
+            </span>
+          </div>
+
+          {/* Grand Total In Words */}
+          <div style={{
+            marginTop: "12px",
+            paddingTop: "10px",
+            borderTop: "1px dashed var(--border)",
+            fontSize: "0.84rem",
+            lineHeight: "1.5",
+            textAlign: "right",
+            color: "var(--text-secondary)"
+          }}>
+            <span style={{ fontWeight: "700", color: "var(--text-primary)", display: "block", marginBottom: "2px" }}>
+              In Words:
+            </span>
+            <span style={{ fontStyle: "italic", color: "var(--accent-2)", fontWeight: "600", letterSpacing: "0.2px" }}>
+              {numberToWords(finalTotal)}
             </span>
           </div>
         </div>
@@ -390,16 +450,20 @@ interface InvoiceModalProps {
 export default function InvoiceModal({ invoice, onClose, statusOverride }: InvoiceModalProps) {
   if (!invoice) return null;
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof window !== "undefined") {
+      window.print();
+    }
   };
 
   return (
     <div className="invoice-overlay" onClick={(e) => {
       if (e.target === e.currentTarget) onClose();
     }}>
-      <div className="invoice-modal printable-invoice" style={{ maxWidth: "820px", padding: "1.5rem" }}>
-        {/* Modal Controls Bar */}
+      <div className="invoice-modal printable-modal" style={{ maxWidth: "820px", padding: "1.5rem" }}>
+        {/* Modal Controls Bar (Only Title and Close 'X' Button) */}
         <div className="no-print" style={{
           display: "flex",
           justifyContent: "space-between",
@@ -412,26 +476,9 @@ export default function InvoiceModal({ invoice, onClose, statusOverride }: Invoi
             <span style={{ fontSize: "1.2rem" }}>🧾</span>
             <span style={{ fontWeight: "700", color: "var(--text-primary)" }}>Invoice Preview #{invoice.id}</span>
           </div>
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div>
             <button
-              onClick={handlePrint}
-              style={{
-                background: "linear-gradient(135deg, var(--accent), var(--accent-2))",
-                color: "#fff",
-                border: "none",
-                padding: "8px 16px",
-                borderRadius: "var(--radius-sm)",
-                fontWeight: "600",
-                fontSize: "0.88rem",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px"
-              }}
-            >
-              <span>🖨️</span> Print / Save PDF
-            </button>
-            <button
+              type="button"
               className="close-btn"
               onClick={onClose}
               style={{
@@ -453,7 +500,7 @@ export default function InvoiceModal({ invoice, onClose, statusOverride }: Invoi
         {/* Core Invoice Content */}
         <InvoiceContent invoice={invoice} statusOverride={statusOverride} />
 
-        {/* Modal Action Buttons at Bottom */}
+        {/* Single Primary Action Button at Bottom */}
         <div className="no-print" style={{
           marginTop: "1.5rem",
           display: "flex",
@@ -461,13 +508,22 @@ export default function InvoiceModal({ invoice, onClose, statusOverride }: Invoi
           gap: "1rem"
         }}>
           <button
+            type="button"
             onClick={handlePrint}
             className="checkout-btn"
-            style={{ width: "auto", padding: "10px 24px" }}
+            style={{
+              width: "auto",
+              padding: "10px 24px",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px"
+            }}
           >
             🖨️ Print / Save as PDF
           </button>
           <button
+            type="button"
             onClick={onClose}
             style={{
               background: "none",
@@ -486,4 +542,3 @@ export default function InvoiceModal({ invoice, onClose, statusOverride }: Invoi
     </div>
   );
 }
-
