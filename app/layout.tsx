@@ -4,6 +4,7 @@ import { CartProvider } from "@/lib/CartContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AuthProvider from "@/components/AuthProvider";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Foody Moody — Premium Fast Food Delivered",
@@ -26,6 +27,7 @@ export default function RootLayout({
             <Footer />
           </CartProvider>
         </AuthProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
